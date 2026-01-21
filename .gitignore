@@ -1,0 +1,18 @@
+# build artifacts
+/bin/
+/dist/
+*.test
+*.out
+coverage.out
+
+# local databases and outputs
+demo.sqlite
+anon.sqlite
+anon_users.csv
+*.sqlite
+
+# plugins
+*.so
+
+# misc
+.DS_Store
