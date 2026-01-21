@@ -103,7 +103,7 @@ func suggestTransformer(name string) *config.TransformConfig {
 	n := strings.ToLower(name)
 	switch {
 	case strings.Contains(n, "email"):
-		return &config.TransformConfig{Type: "HmacSha256", MaxLen: 24}
+		return &config.TransformConfig{Type: "FakerEmail"}
 	case strings.Contains(n, "name"):
 		return &config.TransformConfig{Type: "FakerName"}
 	case strings.Contains(n, "phone"):
