@@ -1,0 +1,44 @@
+version: '3'
+
+vars:
+  GOCACHE: /tmp/go-build
+
+tasks:
+  fmt:
+    cmds:
+      - go fmt ./...
+
+  test:
+    cmds:
+      - env GOCACHE={{.GOCACHE}} go test ./...
+
+  lint:
+    cmds:
+      - go vet ./...
+
+  demo:
+    cmds:
+      - go run examples/make_demo_db.go demo.sqlite
+      - go run ./cmd/pinkmask copy --in demo.sqlite --out anon.sqlite --config examples/mask.yml --salt "abc" --seed 1
+      - ls -la demo.sqlite anon.sqlite
+
+  plugin:rot13:
+    cmds:
+      - go build -buildmode=plugin -o rot13.${GOOS}.${GOARCH}.so ./examples/plugins/rot13
+
+  plugin:new:
+    desc: scaffold a new plugin under examples/plugins
+    vars:
+      NAME: "{{.NAME | default \"example\"}}"
+    cmds:
+      - mkdir -p examples/plugins/{{.NAME}}
+      - |
+        cat <<'EOF' > examples/plugins/{{.NAME}}/main.go
+        package main
+
+        var Transformers = map[string]func(any, map[string]any) (any, error){
+        	"{{.NAME}}": func(value any, ctx map[string]any) (any, error) {
+        		return value, nil
+        	},
+        }
+        EOF

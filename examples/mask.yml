@@ -1,0 +1,48 @@
+include_tables:
+  - "*"
+exclude_tables: []
+
+# Column-level transformations
+# Supported types: HashSha256, HmacSha256, StableTokenize, RegexReplace, SetNull,
+# SetValue, FakerName, FakerEmail, FakerAddress, FakerPhone, DateShift, Map
+
+tables:
+  users:
+    columns:
+      email:
+        type: HmacSha256
+        maxlen: 24
+      full_name:
+        type: FakerName
+      phone:
+        type: FakerPhone
+      address:
+        type: FakerAddress
+      ssn:
+        type: SetNull
+      created_at:
+        type: DateShift
+        params:
+          max_days: 14
+  orders:
+    columns:
+      shipping_address:
+        type: FakerAddress
+      status:
+        type: Map
+        map:
+          pending: pending
+          shipped: shipped
+          cancelled: cancelled
+  order_items:
+    columns:
+      sku:
+        type: StableTokenize
+        maxlen: 12
+
+# Subset rules (used by pinkmask sample or when subset.roots specified)
+subset:
+  roots:
+    - table: users
+      where: "country = 'US'"
+      limit: 50

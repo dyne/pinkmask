@@ -1,0 +1,6 @@
+Plan:
+- users
+  - email: HmacSha256
+  - full_name: FakerName
+- orders
+  (no transforms)
