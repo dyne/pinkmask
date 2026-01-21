@@ -15,11 +15,16 @@ pinkmask copy --in input.sqlite --out output.sqlite --config examples/mask.yml -
 pinkmask sample --in input.sqlite --out output.sqlite --config examples/mask.yml --salt "abc" --seed 1
 pinkmask inspect --in input.sqlite
 pinkmask plan --in input.sqlite --config examples/mask.yml
+pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
 ```
 
 ## Config reference
 
 Config file is YAML. Example at `examples/mask.yml`.
+
+Inspect draft config:
+- `pinkmask inspect --in input.sqlite --draft-config mask.draft.yml`
+- Uses PII name heuristics to emit a starter `mask.yml` with suggested transformers.
 
 ### Schema handling
 

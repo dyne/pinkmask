@@ -103,6 +103,7 @@ func copyCmd(rootOpts *globalOptions, sample bool) *cobra.Command {
 
 func inspectCmd(rootOpts *globalOptions) *cobra.Command {
 	var inPath string
+	var draftPath string
 	cmd := &cobra.Command{
 		Use:   "inspect",
 		Short: "Inspect schema and detect PII candidates",
@@ -115,10 +116,11 @@ func inspectCmd(rootOpts *globalOptions) *cobra.Command {
 				level = log.LevelDebug
 			}
 			logger := log.New(level, cmd.OutOrStdout())
-			return inspect.Run(cmd.Context(), inPath, logger)
+			return inspect.Run(cmd.Context(), inPath, draftPath, logger)
 		},
 	}
 	cmd.Flags().StringVar(&inPath, "in", "", "input SQLite file")
+	cmd.Flags().StringVar(&draftPath, "draft-config", "", "write a draft mask config to a file ('-' for stdout)")
 	_ = cmd.MarkFlagRequired("in")
 	return cmd
 }
