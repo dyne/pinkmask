@@ -22,6 +22,10 @@ tasks:
       - go run ./cmd/pinkmask copy --in demo.sqlite --out anon.sqlite --config examples/mask.yml --salt "abc" --seed 1
       - ls -la demo.sqlite anon.sqlite
 
+  build:
+    cmds:
+      - go build -o bin/pinkmask ./cmd/pinkmask
+
   plugin:rot13:
     cmds:
       - go build -buildmode=plugin -o rot13.${GOOS}.${GOARCH}.so ./examples/plugins/rot13
