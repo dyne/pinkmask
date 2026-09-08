@@ -16,3 +16,6 @@ anon_users.csv
 
 # misc
 .DS_Store
+docs/.vitepress/dist
+docs/.vitepress/cache
+node_modules

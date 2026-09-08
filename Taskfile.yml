@@ -26,6 +26,11 @@ tasks:
     cmds:
       - go build -o bin/pinkmask ./cmd/pinkmask
 
+  docs:
+    desc: run the VitePress documentation site in development mode
+    cmds:
+      - npm run docs:dev -- --host 127.0.0.1
+
   plugin:rot13:
     cmds:
       - go build -buildmode=plugin -o rot13.${GOOS}.${GOARCH}.so ./examples/plugins/rot13
