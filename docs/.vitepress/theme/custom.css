@@ -1,0 +1,112 @@
+/* pinkmask theme — redaction pink on ink */
+:root {
+  --vp-c-brand-1: #ee3d9b;
+  --vp-c-brand-2: #ff7ac2;
+  --vp-c-brand-3: #c8267f;
+  --vp-c-brand-soft: rgba(238, 61, 155, 0.16);
+
+  --vp-c-bg: #0c0a0d;
+  --vp-c-bg-alt: #15121a;
+  --vp-c-bg-elv: #15121a;
+  --vp-c-bg-soft: #15121a;
+  --vp-c-divider: #241f2a;
+  --vp-c-border: #241f2a;
+  --vp-c-gutter: #241f2a;
+
+  --vp-c-text-1: #f3eef1;
+  --vp-c-text-2: #b9aeb6;
+  --vp-c-text-3: #8c8290;
+
+  --vp-font-family-base: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --vp-font-family-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --vp-button-brand-bg: #ee3d9b;
+  --vp-button-brand-hover-bg: #ff7ac2;
+  --vp-button-brand-text: #0c0a0d;
+  --vp-button-brand-hover-text: #0c0a0d;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-alt-bg: #15121a;
+  --vp-button-alt-hover-bg: #241f2a;
+  --vp-button-alt-text: #f3eef1;
+
+  --vp-home-hero-name-color: #ee3d9b;
+  --vp-home-hero-name-background: none;
+  --vp-home-hero-image-filter: none;
+
+  --vp-code-block-bg: #15121a;
+  --vp-code-bg: #241f2a;
+  --vp-code-color: #ff7ac2;
+  --vp-code-line-highlight-color: rgba(238, 61, 155, 0.12);
+  --vp-code-copy-code-bg: #241f2a;
+  --vp-code-copy-code-hover-bg: #2f2836;
+
+  --vp-custom-block-tip-border: #ee3d9b;
+  --vp-custom-block-tip-text: #f3eef1;
+  --vp-custom-block-tip-bg: rgba(238, 61, 155, 0.1);
+
+  --vp-sidebar-bg-color: #0c0a0d;
+  --vp-nav-bg-color: rgba(12, 10, 13, 0.85);
+  --vp-local-search-bg: #15121a;
+}
+
+/* square everything — hacker, not SaaS */
+.VPButton, .VPFeature, .vp-doc div[class*='language-'], .VPNavBarSearch .DocSearch-Button,
+.vp-doc :not(pre) > code, .VPLocalSearchBox .shell, .custom-block, .VPTeamMembersItem {
+  border-radius: 0 !important;
+}
+
+.VPHero .name, .VPHero .text, .vp-doc h1, .vp-doc h2 {
+  font-family: 'Archivo Black', 'Fira Code', sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+}
+.VPHero .name { line-height: 0.95; }
+.VPHero .tagline { color: var(--vp-c-text-2); }
+.VPHero .image-bg { display: none; }
+
+/* redaction-row texture behind the hero */
+.VPHome .VPHero {
+  background-image: repeating-linear-gradient(0deg, transparent 0 22px, #1c1720 22px 23px);
+}
+
+.vp-doc h2 { border-top: 1px solid var(--vp-c-divider); }
+.vp-doc a { text-decoration: underline; text-decoration-color: rgba(238, 61, 155, 0.4); }
+.vp-doc a:hover { text-decoration-color: #ee3d9b; }
+
+.VPFeature { border: 1px solid var(--vp-c-divider); background: var(--vp-c-bg-alt); }
+.VPFeature:hover { border-color: #ee3d9b; }
+.VPFeature .title { font-family: 'Archivo Black', sans-serif; font-weight: 400; }
+
+.VPNavBarTitle .title { font-family: 'Archivo Black', sans-serif; font-weight: 400; letter-spacing: -0.02em; }
+.VPSidebarItem.level-0 .text { text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; color: var(--vp-c-text-3); }
+.VPSidebarItem.is-active > .item > .link > .text { color: #ee3d9b; }
+
+/* redacted inline helper: <span class="redact">secret</span> */
+.redact { background: #ee3d9b; color: #ee3d9b; }
+.redact:hover { color: #0c0a0d; }
+
+/* Keep keyboard focus visible against the ink background. */
+:focus-visible {
+  outline: 2px solid var(--vp-c-brand-2);
+  outline-offset: 3px;
+}
+
+.dyne-signature {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 32px auto 0;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+}
+
+.dyne-signature img {
+  display: block;
+  border-radius: 50%;
+}
+
+.dyne-signature a {
+  color: var(--vp-c-text-1);
+}

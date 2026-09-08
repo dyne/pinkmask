@@ -1,6 +1,22 @@
+<p align="center">
+  <img src="docs/public/banner.svg" alt="pinkmask — deterministic SQLite anonymization and subsetting" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://dyne.github.io/pinkmask/">Documentation</a> ·
+  <a href="https://dyne.github.io/pinkmask/config/">mask.yml reference</a> ·
+  <a href="https://dyne.github.io/pinkmask/plugins/">Plugins</a>
+</p>
+
 # pinkmask
 
-Deterministic SQLite anonymization and subsetting tool inspired by Greenmask.
+> Keep the shape, lose the secrets.
+
+Deterministic SQLite anonymization and subsetting, inspired by Greenmask.
+
+<p align="center">
+  <a href="https://dyne.org" rel="noopener"><img src="docs/public/dyne-logo.svg" alt="Dyne.org free software foundry" width="40" height="40"></a>
+</p>
 
 ## Install
 
@@ -76,6 +92,8 @@ Example:
 
 ```go
 package main
+
+import "strings"
 
 var Transformers = map[string]func(any, map[string]any) (any, error){
 	"Lowercase": func(value any, ctx map[string]any) (any, error) {
