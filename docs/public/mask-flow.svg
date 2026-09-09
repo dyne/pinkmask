@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" role="img" aria-label="pinkmask copies a database while redacting secrets">
+  <rect width="960" height="320" fill="#0c0a0d"></rect>
+  <rect x="0" y="0" width="960" height="1" fill="#241f2a"></rect>
+
+  <!-- redaction row texture -->
+  <g fill="#15121a">
+    <rect x="0" y="40" width="960" height="1"></rect>
+    <rect x="0" y="80" width="960" height="1"></rect>
+    <rect x="0" y="120" width="960" height="1"></rect>
+    <rect x="0" y="160" width="960" height="1"></rect>
+    <rect x="0" y="200" width="960" height="1"></rect>
+    <rect x="0" y="240" width="960" height="1"></rect>
+    <rect x="0" y="280" width="960" height="1"></rect>
+  </g>
+
+  <!-- input table -->
+  <g font-family="Fira Code, Menlo, monospace" shape-rendering="crispEdges">
+    <rect x="60" y="70" width="300" height="220" fill="#15121a" stroke="#241f2a"></rect>
+    <rect x="60" y="70" width="300" height="36" fill="#241f2a"></rect>
+    <text x="76" y="94" font-size="15" fill="#f3eef1">input.sqlite — users</text>
+    <text x="76" y="132" font-size="14" fill="#8c8290">email</text>
+    <rect x="150" y="120" width="160" height="14" fill="#ee3d9b"></rect>
+    <text x="76" y="164" font-size="14" fill="#8c8290">ssn</text>
+    <rect x="150" y="152" width="90" height="14" fill="#ee3d9b"></rect>
+    <text x="76" y="196" font-size="14" fill="#8c8290">full_name</text>
+    <text x="150" y="197" font-size="14" fill="#b9aeb6">Mara Voss</text>
+    <text x="76" y="228" font-size="14" fill="#8c8290">country</text>
+    <text x="150" y="229" font-size="14" fill="#b9aeb6">US</text>
+    <text x="76" y="264" font-size="12" fill="#8c8290">12,431 rows</text>
+  </g>
+
+  <!-- pinkmask core -->
+  <g shape-rendering="crispEdges" text-anchor="middle">
+    <rect x="412" y="120" width="136" height="80" fill="#ee3d9b"></rect>
+    <rect x="428" y="136" width="28" height="10" fill="#0c0a0d"></rect>
+    <rect x="532" y="136" width="0" height="10" fill="#0c0a0d"></rect>
+    <rect x="420" y="154" width="120" height="12" fill="#0c0a0d"></rect>
+    <rect x="444" y="166" width="20" height="8" fill="#ee3d9b"></rect>
+    <rect x="496" y="166" width="20" height="8" fill="#ee3d9b"></rect>
+    <rect x="428" y="182" width="28" height="10" fill="#0c0a0d"></rect>
+    <text x="480" y="228" font-family="Fira Code, Menlo, monospace" font-size="14" fill="#ee3d9b">pinkmask copy</text>
+    <text x="480" y="248" font-family="Fira Code, Menlo, monospace" font-size="12" fill="#8c8290">salt · seed · mask.yml</text>
+  </g>
+
+  <!-- arrow -->
+  <g fill="#ee3d9b" shape-rendering="crispEdges">
+    <rect x="330" y="156" width="60" height="8"></rect>
+    <rect x="390" y="148" width="8" height="8"></rect>
+    <rect x="390" y="164" width="8" height="8"></rect>
+    <rect x="560" y="156" width="60" height="8"></rect>
+    <rect x="612" y="148" width="8" height="8"></rect>
+    <rect x="612" y="164" width="8" height="8"></rect>
+  </g>
+
+  <!-- output table -->
+  <g font-family="Fira Code, Menlo, monospace" shape-rendering="crispEdges">
+    <rect x="600" y="70" width="300" height="220" fill="#15121a" stroke="#ee3d9b"></rect>
+    <rect x="600" y="70" width="300" height="36" fill="#241f2a"></rect>
+    <text x="616" y="94" font-size="15" fill="#f3eef1">output.sqlite — users</text>
+    <text x="616" y="132" font-size="14" fill="#8c8290">email</text>
+    <text x="690" y="133" font-size="14" fill="#ff7ac2">a91f…3e2b@hmac</text>
+    <text x="616" y="164" font-size="14" fill="#8c8290">ssn</text>
+    <text x="690" y="165" font-size="14" fill="#ff7ac2">NULL</text>
+    <text x="616" y="196" font-size="14" fill="#8c8290">full_name</text>
+    <text x="690" y="197" font-size="14" fill="#b9aeb6">Dexter Hale</text>
+    <text x="616" y="228" font-size="14" fill="#8c8290">country</text>
+    <text x="690" y="229" font-size="14" fill="#b9aeb6">US</text>
+    <text x="616" y="264" font-size="12" fill="#ee3d9b">12,431 rows — same shape</text>
+  </g>
+
+  <text x="60" y="46" font-family="Fira Code, Menlo, monospace" font-size="12" fill="#8c8290">BEFORE — live secrets</text>
+  <text x="600" y="46" font-family="Fira Code, Menlo, monospace" font-size="12" fill="#ee3d9b">AFTER — safe to share</text>
+</svg>

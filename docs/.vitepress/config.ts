@@ -96,6 +96,9 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${SITE_BASE}favicon.svg` }],
     ['meta', { property: 'og:image', content: `${SITE_ORIGIN}${SITE_BASE}og.png` }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Archivo+Black&family=Fira+Code:wght@400;500;600&display=swap' }],
   ],
   appearance: 'force-dark',
   themeConfig: {
