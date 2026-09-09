@@ -8,6 +8,7 @@ pinkmask sample  --in input.sqlite --out output.sqlite --config examples/mask.ym
 pinkmask inspect --in input.sqlite
 pinkmask plan    --in input.sqlite --config examples/mask.yml
 pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
+pinkmask version
 ```
 
 | Command | What it does |
@@ -16,6 +17,7 @@ pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
 | `sample` | Copy and mask only the graph-aware subset defined under `subset`. |
 | `inspect` | Print tables, columns, keys, and likely PII columns. With `--draft-config`, emit a starter `mask.yml`. |
 | `plan` | Show the tables and transforms that `copy` would use without writing anything. |
+| `version` | Print the version. `pinkmask --version` works too. |
 
 ## Common flags
 
