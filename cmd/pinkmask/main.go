@@ -67,11 +67,19 @@ func copyCmd(rootOpts *globalOptions, sample bool) *cobra.Command {
 	var inPath string
 	var outPath string
 	var cfgPath string
+	var sourceEmail, sourcePassword string
+	var destEmail, destPassword string
 	cmdName := "copy"
 	cmdShort := "Copy a SQLite database with masking"
 	if sample {
 		cmdName = "sample"
 		cmdShort = "Subset and mask a SQLite database"
+	}
+	envStr := func(k, fallback string) string {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+		return fallback
 	}
 	cmd := &cobra.Command{
 		Use:   cmdName,
@@ -90,23 +98,24 @@ func copyCmd(rootOpts *globalOptions, sample bool) *cobra.Command {
 			}
 			logger := log.New(level, cmd.OutOrStdout())
 			opts := copy.Options{
-				InPath:   inPath,
-				OutPath:  outPath,
-				Config:   cfg,
-				Salt:     rootOpts.Salt,
-				Seed:     rootOpts.Seed,
-				FKMode:   rootOpts.FK,
-				Triggers: rootOpts.Triggers,
-				Jobs:     rootOpts.Jobs,
-				TempDir:  rootOpts.TempDir,
-				Subset:   sample,
-				Logger:   logger,
+				InPath: inPath, OutPath: outPath,
+				SourceEmail:    envStr("PB_SOURCE_EMAIL", sourceEmail),
+				SourcePassword: envStr("PB_SOURCE_PASSWORD", sourcePassword),
+				DestEmail:      envStr("PB_DEST_EMAIL", destEmail),
+				DestPassword:   envStr("PB_DEST_PASSWORD", destPassword),
+				Config:         cfg, Salt: rootOpts.Salt, Seed: rootOpts.Seed,
+				FKMode: rootOpts.FK, Triggers: rootOpts.Triggers, Jobs: rootOpts.Jobs,
+				TempDir: rootOpts.TempDir, Subset: sample, Logger: logger,
 			}
 			return copy.Run(cmd.Context(), opts)
 		},
 	}
-	cmd.Flags().StringVar(&inPath, "in", "", "input SQLite file")
-	cmd.Flags().StringVar(&outPath, "out", "", "output SQLite file")
+	cmd.Flags().StringVar(&inPath, "in", "", "input SQLite file or pb:<url> endpoint")
+	cmd.Flags().StringVar(&outPath, "out", "", "output SQLite file or pb:<url> endpoint")
+	cmd.Flags().StringVar(&sourceEmail, "source-email", "", "source PocketBase superuser email")
+	cmd.Flags().StringVar(&sourcePassword, "source-password", "", "source PocketBase superuser password")
+	cmd.Flags().StringVar(&destEmail, "dest-email", "", "destination PocketBase superuser email")
+	cmd.Flags().StringVar(&destPassword, "dest-password", "", "destination PocketBase superuser password")
 	cmd.Flags().StringVar(&cfgPath, "config", "", "mask configuration file")
 	_ = cmd.MarkFlagRequired("in")
 	_ = cmd.MarkFlagRequired("out")

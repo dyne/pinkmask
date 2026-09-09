@@ -14,6 +14,7 @@ import (
 
 	"github.com/dyne/pinkmask/internal/config"
 	"github.com/dyne/pinkmask/internal/log"
+	"github.com/dyne/pinkmask/internal/pb"
 	"github.com/dyne/pinkmask/internal/schema"
 	"github.com/dyne/pinkmask/internal/subset"
 	"github.com/dyne/pinkmask/internal/transform"
@@ -21,22 +22,55 @@ import (
 )
 
 type Options struct {
-	InPath   string
-	OutPath  string
-	Config   *config.Config
-	Salt     string
-	Seed     int64
-	FKMode   string
-	Triggers string
-	Jobs     int
-	TempDir  string
-	Subset   bool
-	Logger   *log.Logger
+	InPath         string
+	OutPath        string
+	SourceEmail    string
+	SourcePassword string
+	DestEmail      string
+	DestPassword   string
+	Config         *config.Config
+	Salt           string
+	Seed           int64
+	FKMode         string
+	Triggers       string
+	Jobs           int
+	TempDir        string
+	Subset         bool
+	Logger         *log.Logger
 }
 
 func Run(ctx context.Context, opts Options) error {
 	if opts.InPath == "" || opts.OutPath == "" {
 		return fmt.Errorf("input and output paths are required")
+	}
+	source, sourceIsPB, err := parsePBEndpoint(opts.InPath)
+	if err != nil {
+		return err
+	}
+	dest, destIsPB, err := parsePBEndpoint(opts.OutPath)
+	if err != nil {
+		return err
+	}
+	if sourceIsPB || destIsPB {
+		if sourceIsPB && destIsPB {
+			return fmt.Errorf("copy accepts at most one pb: endpoint; use the pb command for PocketBase to PocketBase")
+		}
+		if opts.Subset {
+			return fmt.Errorf("sample does not support pb: endpoints")
+		}
+		bridge := pb.BridgeOptions{
+			Config: opts.Config, Salt: opts.Salt, Seed: opts.Seed, Logger: opts.Logger,
+			SourceEmail: opts.SourceEmail, SourcePassword: opts.SourcePassword,
+			DestEmail: opts.DestEmail, DestPassword: opts.DestPassword,
+		}
+		if sourceIsPB {
+			bridge.SourceURL = source
+			bridge.DestPath = opts.OutPath
+			return pb.RunPBToSQLite(ctx, bridge)
+		}
+		bridge.SourcePath = opts.InPath
+		bridge.DestURL = dest
+		return pb.RunSQLiteToPB(ctx, bridge)
 	}
 	if opts.Config == nil {
 		opts.Config = &config.Config{}
@@ -93,6 +127,17 @@ func Run(ctx context.Context, opts Options) error {
 		opts.Logger.Infof("copy complete")
 	}
 	return nil
+}
+
+func parsePBEndpoint(path string) (string, bool, error) {
+	if !strings.HasPrefix(path, "pb:") {
+		return path, false, nil
+	}
+	url := strings.TrimPrefix(path, "pb:")
+	if url == "" || !strings.Contains(url, "://") {
+		return "", true, fmt.Errorf("invalid pb endpoint %q: use pb:https://host", path)
+	}
+	return url, true, nil
 }
 
 func sqliteDSN(path string) string {

@@ -48,6 +48,34 @@ pinkmask plan --in input.sqlite --config examples/mask.yml
 pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
 ```
 
+### SQLite and PocketBase bridge
+
+Use the existing `copy` command with a `pb:<url>` endpoint for one-sided
+transfers. The same masking configuration, salt, and seed apply in both
+directions.
+
+```bash
+pinkmask copy \
+  --in ./input.sqlite \
+  --out pb:https://masked.example \
+  --dest-email "$PB_DEST_EMAIL" \
+  --dest-password "$PB_DEST_PASSWORD" \
+  --config examples/mask.yml \
+  --salt "abc" --seed 1
+
+pinkmask copy \
+  --in pb:https://source.example \
+  --out ./output.sqlite \
+  --source-email "$PB_SOURCE_EMAIL" \
+  --source-password "$PB_SOURCE_PASSWORD" \
+  --config examples/mask.yml \
+  --salt "abc" --seed 1
+```
+
+SQLite foreign keys become PocketBase relation fields when importing into
+PocketBase. PocketBase relations become SQLite foreign-key columns when
+exporting to SQLite. Use `pb` directly when both endpoints are PocketBase URLs.
+
 ### PocketBase instance-to-instance masking
 
 Copy data from one PocketBase instance to another while applying the same
@@ -55,8 +83,7 @@ Copy data from one PocketBase instance to another while applying the same
 destination's missing non-system collections are created from the source
 schema, record IDs are preserved for relations, and records are imported in
 pages. System and read-only view collections are skipped. Auth collection
-passwords are replaced with deterministic random values and file fields receive
-deterministic placeholder files with fake names.
+passwords are randomized, file fields receive masked placeholders.
 
 ```bash
 pinkmask pb \
@@ -72,8 +99,8 @@ pinkmask pb \
 
 Credentials can be supplied through `PB_SOURCE_EMAIL`, `PB_SOURCE_PASSWORD`,
 `PB_DEST_EMAIL`, and `PB_DEST_PASSWORD`; environment values take precedence
-over matching flags. `include_tables` and `exclude_tables` apply to PocketBase
-collections. Existing destination collections are not altered.
+over matching flags. `include_tables` and `exclude_tables` apply to tables and
+collections.
 
 ### PocketBase Docker fixture
 

@@ -8,18 +8,27 @@ pinkmask sample  --in input.sqlite --out output.sqlite --config examples/mask.ym
 pinkmask inspect --in input.sqlite
 pinkmask plan    --in input.sqlite --config examples/mask.yml
 pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
+pinkmask copy    --in pb:https://source.example --out ./output.sqlite --config examples/mask.yml --source-email "$PB_SOURCE_EMAIL" --source-password "$PB_SOURCE_PASSWORD"
+pinkmask copy    --in ./input.sqlite --out pb:https://masked.example --config examples/mask.yml --dest-email "$PB_DEST_EMAIL" --dest-password "$PB_DEST_PASSWORD"
 pinkmask pb      --source-url https://source.example --dest-url https://masked.example --config examples/pocketbase-mask.yml --salt "abc" --seed 1
 pinkmask version
 ```
 
 | Command | What it does |
 | --- | --- |
-| `pb` | Copy all included non-system, writable collections from one PocketBase instance to another, creating missing schemas and applying column transforms. Source records are not modified; IDs are preserved, auth passwords are randomized, file fields receive masked placeholders, and read-only views are skipped. |
-| `copy` | Copy the whole database, applying column transforms from the config. |
+| `copy` | Copy SQLite databases, transfer SQLite to PocketBase or PocketBase to SQLite when an endpoint uses the `pb:` URL prefix, and apply configured transforms. |
 | `sample` | Copy and mask only the graph-aware subset defined under `subset`. |
 | `inspect` | Print tables, columns, keys, and likely PII columns. With `--draft-config`, emit a starter `mask.yml`. |
 | `plan` | Show the tables and transforms that `copy` would use without writing anything. |
+| `pb` | Copy between PocketBase instances, creating missing collections and applying configured transforms. |
 | `version` | Print the version. `pinkmask --version` works too. |
+
+For `copy`, use `pb:<url>` in either `--in` or `--out`, but not both. The
+other endpoint must be a local SQLite path. SQLite foreign keys become
+PocketBase relation fields when importing into PocketBase. PocketBase relations
+become SQLite foreign-key columns when exporting to SQLite. PB credentials are
+read from `--source-email`/`--source-password` or `--dest-email`/`--dest-password`
+and their `PB_*` environment variables.
 
 ## Common flags
 
@@ -39,12 +48,11 @@ These persistent flags apply to every command:
 ## PocketBase credentials
 
 The `pb` command accepts `--source-email`, `--source-password`, `--dest-email`,
-and `--dest-password`. The equivalent environment variables are
-`PB_SOURCE_EMAIL`, `PB_SOURCE_PASSWORD`, `PB_DEST_EMAIL`, and
-`PB_DEST_PASSWORD`; environment values take precedence over flags. `--source-url`
-and `--dest-url` are required. Existing destination collections are left
-unchanged; only missing non-system writable collections are created from the
-source schema.
+and `--dest-password` when the corresponding endpoint is a URL. The equivalent
+environment variables are `PB_SOURCE_EMAIL`, `PB_SOURCE_PASSWORD`,
+`PB_DEST_EMAIL`, and `PB_DEST_PASSWORD`; environment values take precedence over
+flags. Existing destination collections are left unchanged; only missing
+collections are created from the source schema.
 
 The repository includes a seeded source fixture at
 `testdata/pocketbase/source/pb_data`. Run the two-instance Docker test with:
