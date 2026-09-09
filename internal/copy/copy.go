@@ -119,6 +119,10 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 
+	if err := applySeedRows(ctx, outDB, s, opts.Config, opts.Logger); err != nil {
+		return err
+	}
+
 	if err := createPostDataSchema(ctx, outDB, s, opts); err != nil {
 		return err
 	}
@@ -286,10 +290,11 @@ func copyTable(ctx context.Context, inDB, outDB *sql.DB, tbl *schema.Table, opts
 		if jobs < 1 {
 			jobs = 1
 		}
+		unique := newUniqueTracker(tbl)
 		if jobs == 1 || len(transformers) == 0 {
-			return processRowsSequential(ctx, rows, stmt, selectCols, colIndex, pkCols, useRowID, transformers, opts, tbl)
+			return processRowsSequential(ctx, rows, stmt, selectCols, colIndex, pkCols, useRowID, transformers, opts, tbl, unique)
 		}
-		return processRowsParallel(ctx, rows, stmt, selectCols, colIndex, pkCols, useRowID, transformers, opts, tbl, jobs)
+		return processRowsParallel(ctx, rows, stmt, selectCols, colIndex, pkCols, useRowID, transformers, opts, tbl, jobs, unique)
 	}
 
 	if selSet == nil {
@@ -323,7 +328,58 @@ func copyTable(ctx context.Context, inDB, outDB *sql.DB, tbl *schema.Table, opts
 	return nil
 }
 
-func processRowsSequential(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, selectCols []string, colIndex map[string]int, pkCols []string, useRowID bool, transformers map[string]transform.Transformer, opts Options, tbl *schema.Table) error {
+func applySeedRows(ctx context.Context, outDB *sql.DB, s *schema.Schema, cfg *config.Config, logger *log.Logger) error {
+	if cfg == nil || len(cfg.SeedRows) == 0 {
+		return nil
+	}
+	tableNames := make([]string, 0, len(cfg.SeedRows))
+	for name := range cfg.SeedRows {
+		tableNames = append(tableNames, name)
+	}
+	sort.Strings(tableNames)
+	for _, name := range tableNames {
+		if !tableIncluded(cfg, name) {
+			return fmt.Errorf("seed_rows.%s: table is excluded by configuration", name)
+		}
+		tbl := s.Tables[name]
+		if tbl == nil {
+			return fmt.Errorf("seed_rows: table %s does not exist", name)
+		}
+		known := make(map[string]bool, len(tbl.Columns))
+		for _, col := range tbl.Columns {
+			known[col.Name] = true
+		}
+		for _, row := range cfg.SeedRows[name] {
+			cols := make([]string, 0, len(row))
+			for col := range row {
+				if !known[col] {
+					return fmt.Errorf("seed_rows.%s: column %s does not exist", name, col)
+				}
+				cols = append(cols, col)
+			}
+			sort.Strings(cols)
+			values := make([]any, 0, len(cols))
+			for _, col := range cols {
+				values = append(values, row[col])
+			}
+			insertSQL := fmt.Sprintf("INSERT INTO %s", schema.QuoteIdent(name))
+			if len(cols) == 0 {
+				insertSQL += " DEFAULT VALUES"
+			} else {
+				insertSQL += fmt.Sprintf(" (%s) VALUES (%s)", strings.Join(quotedCols(cols), ", "), placeholders(len(cols)))
+			}
+			if _, err := outDB.ExecContext(ctx, insertSQL, values...); err != nil {
+				return fmt.Errorf("seed row %s (%s): %w", name, strings.Join(cols, ", "), err)
+			}
+		}
+		if logger != nil {
+			logger.Infof("seeded %d row(s) in %s", len(cfg.SeedRows[name]), name)
+		}
+	}
+	return nil
+}
+
+func processRowsSequential(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, selectCols []string, colIndex map[string]int, pkCols []string, useRowID bool, transformers map[string]transform.Transformer, opts Options, tbl *schema.Table, unique *uniqueTracker) error {
 	for rows.Next() {
 		scanTargets := make([]any, len(selectCols))
 		rowValues := make([]any, len(selectCols))
@@ -342,8 +398,8 @@ func processRowsSequential(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, 
 			}
 			values[idx] = newVal
 		}
-		if _, err := stmt.ExecContext(ctx, values...); err != nil {
-			return fmt.Errorf("insert %s: %w", tbl.Name, err)
+		if err := insertValues(ctx, stmt, values, tbl, unique); err != nil {
+			return err
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -352,7 +408,7 @@ func processRowsSequential(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, 
 	return nil
 }
 
-func processRowsParallel(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, selectCols []string, colIndex map[string]int, pkCols []string, useRowID bool, transformers map[string]transform.Transformer, opts Options, tbl *schema.Table, jobs int) error {
+func processRowsParallel(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, selectCols []string, colIndex map[string]int, pkCols []string, useRowID bool, transformers map[string]transform.Transformer, opts Options, tbl *schema.Table, jobs int, unique *uniqueTracker) error {
 	type job struct {
 		index  int
 		values []any
@@ -398,8 +454,8 @@ func processRowsParallel(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, se
 			if !ok {
 				break
 			}
-			if _, err := stmt.ExecContext(ctx, r.values...); err != nil {
-				return fmt.Errorf("insert %s: %w", tbl.Name, err)
+			if err := insertValues(ctx, stmt, r.values, tbl, unique); err != nil {
+				return err
 			}
 			delete(pending, nextIndex)
 			nextIndex++
@@ -438,6 +494,145 @@ func processRowsParallel(ctx context.Context, rows *sql.Rows, stmt *sql.Stmt, se
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate %s: %w", tbl.Name, err)
+	}
+	return nil
+}
+
+type uniqueTracker struct {
+	constraints [][]int
+	used        []map[string]struct{}
+}
+
+func newUniqueTracker(tbl *schema.Table) *uniqueTracker {
+	if tbl == nil || len(tbl.UniqueConstraints) == 0 {
+		return nil
+	}
+	colIndex := make(map[string]int, len(tbl.Columns))
+	for i, col := range tbl.Columns {
+		colIndex[col.Name] = i
+	}
+	tracker := &uniqueTracker{}
+	for _, constraint := range tbl.UniqueConstraints {
+		indexes := make([]int, 0, len(constraint))
+		for _, col := range constraint {
+			idx, ok := colIndex[col]
+			if !ok {
+				indexes = nil
+				break
+			}
+			indexes = append(indexes, idx)
+		}
+		if len(indexes) == 0 {
+			continue
+		}
+		tracker.constraints = append(tracker.constraints, indexes)
+		tracker.used = append(tracker.used, map[string]struct{}{})
+	}
+	if len(tracker.constraints) == 0 {
+		return nil
+	}
+	return tracker
+}
+
+func (u *uniqueTracker) insert(values []any, table string) error {
+	if u == nil {
+		return nil
+	}
+	for attempt := 0; attempt < 10000; attempt++ {
+		keys := make([]string, len(u.constraints))
+		duplicate := -1
+		for i, constraint := range u.constraints {
+			key, comparable := uniqueKey(values, constraint)
+			if !comparable {
+				continue
+			}
+			keys[i] = key
+			if _, exists := u.used[i][key]; exists {
+				duplicate = i
+				break
+			}
+		}
+		if duplicate < 0 {
+			for i, key := range keys {
+				if key != "" {
+					u.used[i][key] = struct{}{}
+				}
+			}
+			return nil
+		}
+		if !makeUnique(values, u.constraints[duplicate], attempt+1) {
+			return fmt.Errorf("cannot preserve unique constraint while transforming %s", table)
+		}
+	}
+	return fmt.Errorf("cannot find unique value while transforming %s", table)
+}
+
+func uniqueKey(values []any, columns []int) (string, bool) {
+	parts := make([]string, len(columns))
+	for i, column := range columns {
+		if values[column] == nil {
+			// SQLite permits multiple NULLs in a UNIQUE constraint.
+			return "", false
+		}
+		parts[i] = fmt.Sprintf("%T:%v", values[column], values[column])
+	}
+	return strings.Join(parts, "|"), true
+}
+
+func makeUnique(values []any, columns []int, suffix int) bool {
+	for _, column := range columns {
+		if next, ok := uniqueAlternate(values[column], suffix); ok {
+			values[column] = next
+			return true
+		}
+	}
+	return false
+}
+
+func uniqueAlternate(value any, suffix int) (any, bool) {
+	marker := fmt.Sprintf("_%d", suffix)
+	switch v := value.(type) {
+	case string:
+		return v + marker, true
+	case []byte:
+		return append(append([]byte(nil), v...), marker...), true
+	case int:
+		return v + suffix, true
+	case int8:
+		return v + int8(suffix), true
+	case int16:
+		return v + int16(suffix), true
+	case int32:
+		return v + int32(suffix), true
+	case int64:
+		return v + int64(suffix), true
+	case uint:
+		return v + uint(suffix), true
+	case uint8:
+		return v + uint8(suffix), true
+	case uint16:
+		return v + uint16(suffix), true
+	case uint32:
+		return v + uint32(suffix), true
+	case uint64:
+		return v + uint64(suffix), true
+	case float32:
+		return v + float32(suffix), true
+	case float64:
+		return v + float64(suffix), true
+	default:
+		return nil, false
+	}
+}
+
+func insertValues(ctx context.Context, stmt *sql.Stmt, values []any, tbl *schema.Table, unique *uniqueTracker) error {
+	if unique != nil {
+		if err := unique.insert(values, tbl.Name); err != nil {
+			return err
+		}
+	}
+	if _, err := stmt.ExecContext(ctx, values...); err != nil {
+		return fmt.Errorf("insert %s: %w", tbl.Name, err)
 	}
 	return nil
 }

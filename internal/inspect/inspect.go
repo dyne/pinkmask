@@ -66,9 +66,7 @@ func rowCount(ctx context.Context, db *sql.DB, table string) (int64, error) {
 func piiCandidates(tbl *schema.Table) []string {
 	var out []string
 	for _, c := range tbl.Columns {
-		name := strings.ToLower(c.Name)
-		if strings.Contains(name, "email") || strings.Contains(name, "name") || strings.Contains(name, "phone") ||
-			strings.Contains(name, "ssn") || strings.Contains(name, "address") || strings.Contains(name, "street") {
+		if suggestColumnTransformer(tbl, c) != nil {
 			out = append(out, c.Name)
 		}
 	}
@@ -83,7 +81,7 @@ func buildDraftConfig(s *schema.Schema) map[string]any {
 		}
 		columns := map[string]any{}
 		for _, col := range tbl.Columns {
-			if tr := suggestTransformer(col.Name); tr != nil {
+			if tr := suggestColumnTransformer(tbl, col); tr != nil {
 				columns[col.Name] = minimalTransformConfig(tr)
 			}
 		}
@@ -99,35 +97,102 @@ func buildDraftConfig(s *schema.Schema) map[string]any {
 	return map[string]any{"tables": tables}
 }
 
+func suggestColumnTransformer(tbl *schema.Table, col schema.Column) *config.TransformConfig {
+	if strings.EqualFold(tbl.Name, "_collections") {
+		// Collection names, fields, rules, and indexes are schema metadata;
+		// changing them can break PocketBase's internal table mapping.
+		return nil
+	}
+	if isStructuralColumn(col.Name) || isBooleanColumn(col) {
+		return nil
+	}
+	tr := suggestTransformer(col.Name)
+	if tr == nil {
+		return nil
+	}
+	if tr.Type == "SetNull" && col.NotNull {
+		// SetNull is invalid for PocketBase fields and most required columns.
+		tr = &config.TransformConfig{Type: "SetValue", Value: "redacted"}
+	}
+	if isUniqueColumn(tbl, col.Name) {
+		// Faker pools are intentionally small; a keyed digest preserves
+		// uniqueness much more reliably for UNIQUE fields.
+		return &config.TransformConfig{Type: "HmacSha256", MaxLen: 32}
+	}
+	return tr
+}
+
+func isUniqueColumn(tbl *schema.Table, name string) bool {
+	for _, constraint := range tbl.UniqueConstraints {
+		if len(constraint) == 1 && constraint[0] == name {
+			return true
+		}
+	}
+	return false
+}
+
+func isStructuralColumn(name string) bool {
+	n := strings.ToLower(name)
+	switch n {
+	case "id", "created", "updated", "system", "type", "fields", "indexes", "options",
+		"collectionref", "recordref", "emailvisibility", "verified", "listrule", "viewrule",
+		"createrule", "updaterule", "deleterule", "passwordconfirm":
+		return true
+	}
+	return strings.HasSuffix(n, "rule")
+}
+
+func isBooleanColumn(col schema.Column) bool {
+	typ := strings.ToUpper(col.Type)
+	if strings.Contains(typ, "BOOL") {
+		return true
+	}
+	if col.DefaultSQL != nil {
+		defaultSQL := strings.ToUpper(strings.TrimSpace(*col.DefaultSQL))
+		return defaultSQL == "TRUE" || defaultSQL == "FALSE"
+	}
+	return false
+}
+
 func suggestTransformer(name string) *config.TransformConfig {
 	n := strings.ToLower(name)
 	switch {
 	case strings.Contains(n, "email"):
 		return &config.TransformConfig{Type: "FakerEmail"}
-	case strings.Contains(n, "name"):
-		return &config.TransformConfig{Type: "FakerName"}
-	case strings.Contains(n, "phone"):
-		return &config.TransformConfig{Type: "FakerPhone"}
-	case strings.Contains(n, "ssn"):
-		return &config.TransformConfig{Type: "SetNull"}
 	case strings.Contains(n, "password"), strings.Contains(n, "passwd"), strings.Contains(n, "pwd"):
 		return &config.TransformConfig{Type: "SetValue", Value: "redacted"}
+	case strings.Contains(n, "token"), strings.Contains(n, "secret"), strings.Contains(n, "apikey"), strings.Contains(n, "api_key"), strings.Contains(n, "fingerprint"):
+		return &config.TransformConfig{Type: "SetValue", Value: "redacted"}
+	case strings.Contains(n, "phone"), strings.Contains(n, "mobile"), strings.Contains(n, "telephone"), strings.Contains(n, "fax"):
+		return &config.TransformConfig{Type: "FakerPhone"}
+	case strings.Contains(n, "ssn"), strings.Contains(n, "taxid"), strings.Contains(n, "tax_id"):
+		return &config.TransformConfig{Type: "SetNull"}
 	case strings.Contains(n, "birth"), strings.Contains(n, "birthday"), strings.Contains(n, "dob"):
 		return &config.TransformConfig{Type: "DateShift", Params: map[string]any{"max_days": 60}}
-	case strings.Contains(n, "createdat"), strings.Contains(n, "updatedat"), strings.Contains(n, "modifiedat"),
-		strings.Contains(n, "created_at"), strings.Contains(n, "updated_at"), strings.Contains(n, "modified_at"),
-		strings.Contains(n, "date"), strings.HasSuffix(n, "_at"), strings.Contains(n, "timestamp"):
+	case isDateFieldName(n):
 		return &config.TransformConfig{Type: "DateShift", Params: map[string]any{"max_days": 30}}
-	case strings.Contains(n, "address"), strings.Contains(n, "street"):
+	case strings.Contains(n, "address"), strings.Contains(n, "street"), strings.Contains(n, "city"), strings.Contains(n, "postal"), strings.Contains(n, "zip"):
 		return &config.TransformConfig{Type: "FakerAddress"}
+	case strings.Contains(n, "name"), strings.Contains(n, "username"), strings.Contains(n, "user_name"), strings.Contains(n, "nickname"):
+		return &config.TransformConfig{Type: "FakerName"}
 	default:
 		return nil
 	}
 }
 
+func isDateFieldName(name string) bool {
+	for _, suffix := range []string{"_at", "_date", "_time", "timestamp"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return strings.HasPrefix(name, "date_") || strings.HasPrefix(name, "time_")
+}
+
 func writeDraftConfig(path string, cfg map[string]any) error {
+	header := "# Draft mask config\n# Passwords are redacted; add a seed_rows entry with a bcrypt hash to create a known login\n"
 	if path == "-" {
-		if _, err := fmt.Fprintln(os.Stdout, "\n# Draft mask config"); err != nil {
+		if _, err := fmt.Fprint(os.Stdout, "\n"+header); err != nil {
 			return fmt.Errorf("write draft header: %w", err)
 		}
 		enc := yaml.NewEncoder(os.Stdout)
@@ -142,7 +207,7 @@ func writeDraftConfig(path string, cfg map[string]any) error {
 		return fmt.Errorf("create draft config: %w", err)
 	}
 	defer func() { _ = file.Close() }()
-	if _, err := fmt.Fprintln(file, "# Draft mask config"); err != nil {
+	if _, err := fmt.Fprint(file, header); err != nil {
 		return fmt.Errorf("write draft header: %w", err)
 	}
 	enc := yaml.NewEncoder(file)

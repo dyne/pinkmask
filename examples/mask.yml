@@ -44,5 +44,13 @@ tables:
 subset:
   roots:
     - table: users
+
       where: "country = 'US'"
       limit: 50
+
+# Insert extra rows after the copy (e.g. a known login when passwords are
+# redacted). PocketBase auth tables store bcrypt hashes, not plaintext.
+# seed_rows:
+#   _superusers:
+#     - email: "pinkmask-admin@example.com"
+#       password: "$2a$10$GDzXh6uguwvZMBxIOjsTK.UXZazOoT07yUciJr3cEX3Kqw6e8P4fy"

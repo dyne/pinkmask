@@ -23,12 +23,13 @@ type SQLItem struct {
 }
 
 type Table struct {
-	Name         string
-	SQL          string
-	Columns      []Column
-	PrimaryKeys  []string
-	ForeignKeys  []ForeignKey
-	WithoutRowID bool
+	Name              string
+	SQL               string
+	Columns           []Column
+	PrimaryKeys       []string
+	UniqueConstraints [][]string
+	ForeignKeys       []ForeignKey
+	WithoutRowID      bool
 }
 
 type Column struct {
@@ -74,12 +75,17 @@ func Load(ctx context.Context, db *sql.DB) (*Schema, error) {
 			if err != nil {
 				return nil, err
 			}
+			uniqueConstraints, err := loadUniqueConstraints(ctx, db, name)
+			if err != nil {
+				return nil, err
+			}
 			fks, err := loadForeignKeys(ctx, db, name)
 			if err != nil {
 				return nil, err
 			}
 			tbl.Columns = cols
 			tbl.PrimaryKeys = pkCols
+			tbl.UniqueConstraints = uniqueConstraints
 			tbl.ForeignKeys = fks
 			s.Tables[name] = tbl
 		case "index":
@@ -94,6 +100,56 @@ func Load(ctx context.Context, db *sql.DB) (*Schema, error) {
 		return nil, fmt.Errorf("iterate sqlite_master: %w", err)
 	}
 	return s, nil
+}
+
+func loadUniqueConstraints(ctx context.Context, db *sql.DB, table string) ([][]string, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA index_list(%s)", QuoteIdent(table)))
+	if err != nil {
+		return nil, fmt.Errorf("index_list %s: %w", table, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var constraints [][]string
+	for rows.Next() {
+		var seq, unique int
+		var indexName string
+		var origin, partial any
+		if err := rows.Scan(&seq, &indexName, &unique, &origin, &partial); err != nil {
+			return nil, fmt.Errorf("scan index_list %s: %w", table, err)
+		}
+		if unique == 0 {
+			continue
+		}
+		indexRows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA index_info(%s)", QuoteIdent(indexName)))
+		if err != nil {
+			return nil, fmt.Errorf("index_info %s: %w", indexName, err)
+		}
+		var columns []string
+		for indexRows.Next() {
+			var indexSeq, columnID int
+			var columnName sql.NullString
+			if err := indexRows.Scan(&indexSeq, &columnID, &columnName); err != nil {
+				_ = indexRows.Close()
+				return nil, fmt.Errorf("scan index_info %s: %w", indexName, err)
+			}
+			if !columnName.Valid {
+				columns = nil
+				break
+			}
+			columns = append(columns, columnName.String)
+		}
+		if err := indexRows.Err(); err != nil {
+			_ = indexRows.Close()
+			return nil, fmt.Errorf("iterate index_info %s: %w", indexName, err)
+		}
+		_ = indexRows.Close()
+		if len(columns) > 0 {
+			constraints = append(constraints, columns)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate index_list %s: %w", table, err)
+	}
+	return constraints, nil
 }
 
 func loadTableInfo(ctx context.Context, db *sql.DB, table string) ([]Column, []string, error) {
