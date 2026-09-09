@@ -20,8 +20,22 @@ Deterministic SQLite anonymization and subsetting, inspired by Greenmask.
 
 ## Install
 
+### With mise
+
+```bash
+mise use -g github:dyne/pinkmask@latest
+```
+
+### With Go
+
 ```bash
 go install github.com/dyne/pinkmask/cmd/pinkmask@latest
+```
+
+Prebuilt binaries for Linux, macOS, and Windows (amd64 and arm64) are attached to each [GitHub release](https://github.com/dyne/pinkmask/releases). Check the installed version with:
+
+```bash
+pinkmask version
 ```
 
 ## Usage

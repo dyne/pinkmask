@@ -21,7 +21,7 @@ func Run(ctx context.Context, inPath string, cfg *config.Config, logger *log.Log
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	s, err := schema.Load(ctx, db)
 	if err != nil {

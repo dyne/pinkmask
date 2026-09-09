@@ -63,7 +63,7 @@ func createPlanDB(path string) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	stmts := []string{
 		`CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, full_name TEXT)`,
 		`CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER, status TEXT, FOREIGN KEY(user_id) REFERENCES users(id))`,

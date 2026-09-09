@@ -55,7 +55,7 @@ func Load(ctx context.Context, db *sql.DB) (*Schema, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite_master: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var name, typ string
 		var sqlText sql.NullString
@@ -101,7 +101,7 @@ func loadTableInfo(ctx context.Context, db *sql.DB, table string) ([]Column, []s
 	if err != nil {
 		return nil, nil, fmt.Errorf("table_info %s: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var cols []Column
 	pkMap := map[int]string{}
 	for rows.Next() {
@@ -144,7 +144,7 @@ func loadForeignKeys(ctx context.Context, db *sql.DB, table string) ([]ForeignKe
 	if err != nil {
 		return nil, fmt.Errorf("foreign_key_list %s: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var fks []ForeignKey
 	for rows.Next() {
 		var fk ForeignKey

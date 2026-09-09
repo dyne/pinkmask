@@ -134,16 +134,16 @@ func BuildSelection(ctx context.Context, db *sql.DB, s *schema.Schema, cfg *conf
 				ptrs[i] = &vals[i]
 			}
 			if err := rows.Scan(ptrs...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, fmt.Errorf("subset root scan %s: %w", root.Table, err)
 			}
 			set.Add(vals)
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("subset root iterate %s: %w", root.Table, err)
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	if err := expandSelection(ctx, db, s, selection); err != nil {
 		return nil, err
@@ -260,16 +260,16 @@ func selectFKValues(ctx context.Context, db *sql.DB, childTbl *schema.Table, fk 
 				ptrs[i] = &vals[i]
 			}
 			if err := rows.Scan(ptrs...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, fmt.Errorf("subset scan fk values %s: %w", childTbl.Name, err)
 			}
 			results = append(results, vals)
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("subset iterate fk values %s: %w", childTbl.Name, err)
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	return results, nil
 }
@@ -320,7 +320,7 @@ func selectParentPKs(ctx context.Context, db *sql.DB, parentTbl *schema.Table, f
 				ptrs[i] = &vals[i]
 			}
 			if err := rows.Scan(ptrs...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return false, fmt.Errorf("subset scan parent %s: %w", parentTbl.Name, err)
 			}
 			if parentSet.Add(vals) {
@@ -328,10 +328,10 @@ func selectParentPKs(ctx context.Context, db *sql.DB, parentTbl *schema.Table, f
 			}
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return false, fmt.Errorf("subset iterate parent %s: %w", parentTbl.Name, err)
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	return added, nil
 }
@@ -369,7 +369,7 @@ func addChildKeys(ctx context.Context, db *sql.DB, childTbl *schema.Table, fk FK
 				ptrs[i] = &vals[i]
 			}
 			if err := rows.Scan(ptrs...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return false, fmt.Errorf("subset scan child %s: %w", childTbl.Name, err)
 			}
 			if childSet.Add(vals) {
@@ -377,10 +377,10 @@ func addChildKeys(ctx context.Context, db *sql.DB, childTbl *schema.Table, fk FK
 			}
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return false, fmt.Errorf("subset iterate child %s: %w", childTbl.Name, err)
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	return added, nil
 }

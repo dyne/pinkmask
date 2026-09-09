@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "dev"
+
 type globalOptions struct {
 	Verbose  bool
 	Salt     string
@@ -27,8 +29,9 @@ type globalOptions struct {
 func main() {
 	rootOpts := &globalOptions{}
 	root := &cobra.Command{
-		Use:   "pinkmask",
-		Short: "Deterministic SQLite anonymization and subsetting",
+		Use:     "pinkmask",
+		Short:   "Deterministic SQLite anonymization and subsetting",
+		Version: version,
 	}
 
 	root.PersistentFlags().BoolVar(&rootOpts.Verbose, "verbose", false, "enable debug logging")
@@ -44,6 +47,13 @@ func main() {
 	root.AddCommand(copyCmd(rootOpts, true))
 	root.AddCommand(inspectCmd(rootOpts))
 	root.AddCommand(planCmd(rootOpts))
+	root.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print the version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version)
+		},
+	})
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

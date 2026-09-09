@@ -22,13 +22,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s", table))
 	if err != nil {
 		panic(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	cols, err := rows.Columns()
 	if err != nil {
@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	w := csv.NewWriter(file)
 	if err := w.Write(cols); err != nil {
 		panic(err)
