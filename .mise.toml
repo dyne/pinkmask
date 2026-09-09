@@ -1,3 +1,46 @@
 [tools]
 go = "latest"
-task = "latest"
+
+[tasks.fmt]
+run = "go fmt ./..."
+
+[tasks.test]
+env = { GOCACHE = "/tmp/go-build" }
+run = "go test ./..."
+
+[tasks.lint]
+run = "go vet ./..."
+
+[tasks.build]
+run = "go build -o bin/pinkmask ./cmd/pinkmask"
+
+[tasks.demo]
+run = [
+  "go run examples/make_demo_db.go demo.sqlite",
+  "go run ./cmd/pinkmask copy --in demo.sqlite --out anon.sqlite --config examples/mask.yml --salt abc --seed 1",
+  "ls -la demo.sqlite anon.sqlite",
+]
+
+[tasks.docs]
+description = "run the VitePress documentation site in development mode"
+run = "npm run docs:dev -- --host 127.0.0.1"
+
+[tasks."plugin:rot13"]
+run = "go build -buildmode=plugin -o rot13.$(go env GOOS).$(go env GOARCH).so ./examples/plugins/rot13"
+
+[tasks."plugin:new"]
+description = "scaffold a new plugin under examples/plugins"
+usage = 'arg "[name]" help="plugin name" default="example"'
+run = '''
+name="${usage_name}"
+mkdir -p "examples/plugins/$name"
+cat <<EOF > "examples/plugins/$name/main.go"
+package main
+
+var Transformers = map[string]func(any, map[string]any) (any, error){
+	"$name": func(value any, ctx map[string]any) (any, error) {
+		return value, nil
+	},
+}
+EOF
+'''
