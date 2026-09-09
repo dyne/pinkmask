@@ -19,3 +19,7 @@ anon_users.csv
 docs/.vitepress/dist
 docs/.vitepress/cache
 node_modules
+
+# semantic release scratch files (goreleaser refuses to run on a dirty tree)
+.generated-go-semantic-release-changelog.md
+.semrel/
