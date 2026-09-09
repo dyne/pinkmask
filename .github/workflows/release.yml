@@ -63,6 +63,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # go-semantic-release creates the tag through the GitHub API, so the
+      # checkout above predates it: goreleaser can't resolve a tag it never
+      # fetched ("unexpected git tag output for ... : \"\"").
+      - name: 📥 Fetch release tag
+        if: steps.semrel.outputs.version != ''
+        run: git fetch --force --tags origin
+
       - name: 📦 Publish binaries with goreleaser
         if: steps.semrel.outputs.version != ''
         run: mise exec goreleaser@2 -- goreleaser release --clean
