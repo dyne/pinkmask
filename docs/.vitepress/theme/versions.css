@@ -1,0 +1,16 @@
+.version-banner {
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vp-c-brand-1) 10%, transparent);
+  font-size: 0.9rem;
+  text-align: center;
+  max-width: 1152px;
+}
+
+@media (min-width: 960px) {
+  .version-banner {
+    margin-top: 1rem;
+  }
+}
