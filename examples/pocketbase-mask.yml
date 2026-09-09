@@ -1,0 +1,38 @@
+include_tables:
+  - customers
+  - orders
+  - members
+
+exclude_tables: []
+
+tables:
+  customers:
+    columns:
+      full_name:
+        type: FakerName
+      email:
+        type: FakerEmail
+      phone:
+        type: FakerPhone
+      address:
+        type: FakerAddress
+      ssn:
+        type: SetNull
+  orders:
+    columns:
+      shipping_address:
+        type: FakerAddress
+      status:
+        type: Map
+        map:
+          pending: pending
+          shipped: shipped
+          cancelled: cancelled
+  members:
+    columns:
+      email:
+        type: FakerEmail
+      display_name:
+        type: FakerName
+      phone:
+        type: FakerPhone

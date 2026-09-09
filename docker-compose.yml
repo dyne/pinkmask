@@ -1,11 +1,96 @@
-version: "3.9"
 services:
   pinkmask-demo:
+    profiles: ["sqlite"]
     image: golang:1.23
     working_dir: /workspace
     volumes:
       - ./:/workspace
     command: >
-      bash -lc "go run examples/make_demo_db.go demo.sqlite \
-      && go run ./cmd/pinkmask copy --in demo.sqlite --out anon.sqlite --config examples/mask.yml --salt 'abc' --seed 1 \
+      bash -lc "go run examples/make_demo_db.go demo.sqlite
+      && go run ./cmd/pinkmask copy --in demo.sqlite --out anon.sqlite
+      --config examples/mask.yml --salt 'abc' --seed 1
       && go run ./examples/export_csv anon.sqlite users anon_users.csv"
+
+  pb-source:
+    profiles: ["pb"]
+    image: ghcr.io/muchobien/pocketbase:0.40.3
+    environment:
+      PB_ADMIN_EMAIL: admin@example.com
+      PB_ADMIN_PASSWORD: pinkmask-admin-password
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./testdata/pocketbase/source/pb_data:/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  pb-destination:
+    image: ghcr.io/muchobien/pocketbase:0.40.3
+    profiles: ["pb"]
+    environment:
+      PB_ADMIN_EMAIL: admin@example.com
+      PB_ADMIN_PASSWORD: pinkmask-admin-password
+    ports:
+      - "8091:8090"
+    volumes:
+      - pb_destination_data:/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  pb-seed:
+    image: golang:1.23
+    profiles: ["pb"]
+    working_dir: /workspace
+    depends_on:
+      pb-source:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+    command: >
+      sh -c 'go run ./examples/pocketbase_seed
+      --url http://pb-source:8090
+      --email admin@example.com
+      --password pinkmask-admin-password
+      && touch /tmp/seed-ready
+      && sleep infinity'
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/seed-ready"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  pinkmask-pb:
+    image: golang:1.23
+    working_dir: /workspace
+    profiles: ["pb"]
+    depends_on:
+      pb-seed:
+        condition: service_healthy
+      pb-destination:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+    command: >
+      go run ./cmd/pinkmask pb
+      --source-url http://pb-source:8090
+      --source-email admin@example.com
+      --source-password pinkmask-admin-password
+      --dest-url http://pb-destination:8090
+      --dest-email admin@example.com
+      --dest-password pinkmask-admin-password
+      --config examples/pocketbase-mask.yml
+      --salt fixture-salt
+      --seed 7
+      --verbose
+
+volumes:
+  pb_destination_data:
