@@ -38,3 +38,11 @@ golangci-lint run ./...
 [tasks.vuln]
 description = "Run govulncheck for known vulnerabilities"
 run = "govulncheck ./..."
+
+[tasks.docs]
+description = "Build the VitePress docs (latest + versioned release archives) into docs/.vitepress/dist"
+run = "npm run docs:build"
+
+[tasks.docs-preview]
+description = "Serve the built docs locally"
+run = "npm run docs:preview"
