@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	IncludeTables []string                `yaml:"include_tables"`
-	ExcludeTables []string                `yaml:"exclude_tables"`
-	Tables        map[string]*TableConfig `yaml:"tables"`
-	Subset        *SubsetConfig           `yaml:"subset"`
+	IncludeTables []string                    `yaml:"include_tables"`
+	ExcludeTables []string                    `yaml:"exclude_tables"`
+	Tables        map[string]*TableConfig     `yaml:"tables"`
+	SeedRows      map[string][]map[string]any `yaml:"seed_rows"`
+	Subset        *SubsetConfig               `yaml:"subset"`
 }
 
 type TableConfig struct {

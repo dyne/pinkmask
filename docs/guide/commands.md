@@ -19,9 +19,12 @@ pinkmask version
 | `copy` | Copy SQLite databases, transfer SQLite to PocketBase or PocketBase to SQLite when an endpoint uses the `pb:` URL prefix, and apply configured transforms. |
 | `sample` | Copy and mask only the graph-aware subset defined under `subset`. |
 | `inspect` | Print tables, columns, keys, and likely PII columns. With `--draft-config`, emit a starter `mask.yml`. |
+
 | `plan` | Show the tables and transforms that `copy` would use without writing anything. |
 | `pb` | Copy between PocketBase instances, creating missing collections and applying configured transforms. |
 | `version` | Print the version. `pinkmask --version` works too. |
+
+`inspect --draft-config` uses column names, SQLite `NOT NULL` and `UNIQUE` constraints, and PocketBase metadata conventions. It leaves collection schema fields such as `_collections.name`, rules, indexes, IDs, timestamps, and boolean flags unchanged; required sensitive fields use a non-null redaction, and unique PII fields use deterministic HMAC values instead of a small faker pool. Treat the draft as a reviewed starting point, especially for application-specific fields.
 
 For `copy`, use `pb:<url>` in either `--in` or `--out`, but not both. The
 other endpoint must be a local SQLite path. SQLite foreign keys become
@@ -29,6 +32,12 @@ PocketBase relation fields when importing into PocketBase. PocketBase relations
 become SQLite foreign-key columns when exporting to SQLite. PB credentials are
 read from `--source-email`/`--source-password` or `--dest-email`/`--dest-password`
 and their `PB_*` environment variables.
+
+`copy` and `sample` (for SQLite-to-SQLite copies) also honour the `seed_rows`
+config key: rows listed there are inserted into the destination after the data
+copy, before indexes and triggers. This is how you add a known login when
+passwords have been redacted — seed a `_superusers` row whose `password` is a
+bcrypt hash. See [mask.yml reference](/config/) for details and an example.
 
 ## Common flags
 

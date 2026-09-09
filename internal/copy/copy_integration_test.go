@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dyne/pinkmask/internal/config"
@@ -59,6 +60,147 @@ func TestCopyAndTransform(t *testing.T) {
 	expected, _ := transform.NewHmacSha256("salt", 16).Transform("user1@example.com", transform.RowContext{Table: "users", PK: []any{int64(1)}, Seed: 7, Salt: "salt"})
 	if masked != expected {
 		t.Fatalf("masked email mismatch: %v vs %v", masked, expected)
+	}
+}
+
+func TestCopyResolvesUniqueTransformCollisions(t *testing.T) {
+	ctx := context.Background()
+	tmp := t.TempDir()
+	inPath := filepath.Join(tmp, "in.sqlite")
+	outPath := filepath.Join(tmp, "out.sqlite")
+	inDB, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_busy_timeout=5000", inPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = inDB.ExecContext(ctx, `CREATE TABLE _collections (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL)`)
+	if err == nil {
+		_, err = inDB.ExecContext(ctx, `INSERT INTO _collections (id, name) VALUES ('one', 'customers'), ('two', 'orders')`)
+	}
+	_ = inDB.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = Run(ctx, Options{
+		InPath: inPath, OutPath: outPath,
+		Config: &config.Config{Tables: map[string]*config.TableConfig{
+			"_collections": {Columns: map[string]*config.TransformConfig{
+				"name": {Type: "SetValue", Value: "masked"},
+			}},
+		}},
+		FKMode: "on", Triggers: "on", Jobs: 2,
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	outDB, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_busy_timeout=5000", outPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = outDB.Close() }()
+	rows, err := outDB.QueryContext(ctx, `SELECT name FROM _collections ORDER BY id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fmt.Sprint(names), "[masked masked_1]"; got != want {
+		t.Fatalf("names = %s, want %s", got, want)
+	}
+}
+
+func TestSeedRowsInsertKnownSuperuser(t *testing.T) {
+	ctx := context.Background()
+	tmp := t.TempDir()
+	inPath := filepath.Join(tmp, "in.sqlite")
+	outPath := filepath.Join(tmp, "out.sqlite")
+	inDB, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_busy_timeout=5000", inPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = inDB.ExecContext(ctx, `CREATE TABLE _superusers (
+		id TEXT PRIMARY KEY DEFAULT ('r'||lower(hex(randomblob(6)))) NOT NULL,
+		email TEXT NOT NULL,
+		password TEXT NOT NULL,
+		tokenKey TEXT NOT NULL DEFAULT '',
+		verified BOOLEAN NOT NULL DEFAULT FALSE,
+		created TEXT NOT NULL DEFAULT '',
+		updated TEXT NOT NULL DEFAULT ''
+	)`)
+	if err == nil {
+		_, err = inDB.ExecContext(ctx, `INSERT INTO _superusers (email, password) VALUES ('old@example.com', '$2a$10$OLDHASH..')`)
+	}
+	_ = inDB.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const adminHash = "$2a$10$GDzXh6uguwvZMBxIOjsTK.UXZazOoT07yUciJr3cEX3Kqw6e8P4fy"
+	err = Run(ctx, Options{
+		InPath: inPath, OutPath: outPath,
+		Config: &config.Config{
+			SeedRows: map[string][]map[string]any{
+				"_superusers": {
+					{"email": "admin@example.com", "password": adminHash},
+				},
+			},
+		},
+		FKMode: "on", Triggers: "on", Jobs: 2,
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	outDB, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_busy_timeout=5000", outPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = outDB.Close() }()
+	var email string
+	if err := outDB.QueryRowContext(ctx, `SELECT email FROM _superusers WHERE password = ?`, adminHash).Scan(&email); err != nil {
+		t.Fatalf("seeded superuser not found: %v", err)
+	}
+	if email != "admin@example.com" {
+		t.Fatalf("seeded email = %q", email)
+	}
+}
+
+func TestSeedRowsRejectsUnknownColumn(t *testing.T) {
+	ctx := context.Background()
+	tmp := t.TempDir()
+	inPath := filepath.Join(tmp, "in.sqlite")
+	outPath := filepath.Join(tmp, "out.sqlite")
+	inDB, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_busy_timeout=5000", inPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = inDB.ExecContext(ctx, `CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL)`)
+	_ = inDB.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Run(ctx, Options{
+		InPath: inPath, OutPath: outPath,
+		Config: &config.Config{
+			SeedRows: map[string][]map[string]any{
+				"users": {{"email": "a@example.com", "nope": "x"}},
+			},
+		},
+		FKMode: "on", Triggers: "on",
+	})
+	if err == nil || !strings.Contains(err.Error(), "seed_rows.users: column nope does not exist") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
