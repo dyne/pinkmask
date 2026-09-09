@@ -52,7 +52,7 @@ Produces `demo.sqlite`, `anon.sqlite`, and `anon_users.csv` in the repo.
 ## Development
 
 ```bash
-mise run fmt
 mise run test
-mise run demo
+mise run lint
+mise run vuln
 ```
