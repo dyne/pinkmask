@@ -279,9 +279,9 @@ This produces `demo.sqlite`, `anon.sqlite`, and `anon_users.csv` in the repo.
 ## Development
 
 ```bash
-task fmt
-task test
-task demo
+mise run test
+mise run lint
+mise run vuln
 ```
 
 ## Acknowledgments
