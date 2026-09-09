@@ -8,6 +8,8 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@fontsource/archivo-black": "^5.3.0",
+    "@fontsource/fira-code": "^5.3.0",
     "@types/node": "^26.5.0",
     "vitepress": "^1.5.0"
   }
