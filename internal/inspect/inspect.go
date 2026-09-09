@@ -19,7 +19,7 @@ func Run(ctx context.Context, inPath string, draftPath string, logger *log.Logge
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	s, err := schema.Load(ctx, db)
 	if err != nil {
@@ -141,7 +141,7 @@ func writeDraftConfig(path string, cfg map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("create draft config: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if _, err := fmt.Fprintln(file, "# Draft mask config"); err != nil {
 		return fmt.Errorf("write draft header: %w", err)
 	}
@@ -158,7 +158,7 @@ func minimalTransformConfig(tr *config.TransformConfig) map[string]any {
 	if tr.Type != "" {
 		out["type"] = tr.Type
 	}
-	if tr.Params != nil && len(tr.Params) > 0 {
+	if len(tr.Params) > 0 {
 		out["params"] = tr.Params
 	}
 	if tr.Value != nil {
@@ -176,7 +176,7 @@ func minimalTransformConfig(tr *config.TransformConfig) map[string]any {
 	if tr.MaxLen > 0 {
 		out["maxlen"] = tr.MaxLen
 	}
-	if tr.Map != nil && len(tr.Map) > 0 {
+	if len(tr.Map) > 0 {
 		out["map"] = tr.Map
 	}
 	if tr.LookupTable != "" {

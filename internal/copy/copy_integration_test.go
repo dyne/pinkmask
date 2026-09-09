@@ -48,7 +48,7 @@ func TestCopyAndTransform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open out: %v", err)
 	}
-	defer outDB.Close()
+	defer func() { _ = outDB.Close() }()
 	if err := checkFK(outDB); err != nil {
 		t.Fatalf("fk check: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestSubsetCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open out: %v", err)
 	}
-	defer outDB.Close()
+	defer func() { _ = outDB.Close() }()
 	if err := checkFK(outDB); err != nil {
 		t.Fatalf("fk check: %v", err)
 	}
@@ -111,7 +111,7 @@ func createTestDB(path string) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func checkFK(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if rows.Next() {
 		return fmt.Errorf("foreign key check failed")
 	}

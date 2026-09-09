@@ -52,13 +52,13 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
 	}
-	defer inDB.Close()
+	defer func() { _ = inDB.Close() }()
 
 	outDB, err := sql.Open("sqlite", sqliteDSN(opts.OutPath))
 	if err != nil {
 		return fmt.Errorf("open output: %w", err)
 	}
-	defer outDB.Close()
+	defer func() { _ = outDB.Close() }()
 
 	if err := setFKMode(ctx, outDB, opts.FKMode); err != nil {
 		return err
@@ -118,7 +118,7 @@ func createSchema(ctx context.Context, outDB *sql.DB, s *schema.Schema, order []
 	if err != nil {
 		return fmt.Errorf("begin schema tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	for _, name := range order {
 		if !tableIncluded(opts.Config, name) {
 			continue
@@ -142,7 +142,7 @@ func createPostDataSchema(ctx context.Context, outDB *sql.DB, s *schema.Schema, 
 	if err != nil {
 		return fmt.Errorf("begin post-data tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	for _, v := range s.Views {
 		if v.SQL == "" {
 			continue
@@ -228,7 +228,7 @@ func copyTable(ctx context.Context, inDB, outDB *sql.DB, tbl *schema.Table, opts
 	if err != nil {
 		return fmt.Errorf("prepare insert %s: %w", tbl.Name, err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	transformers, err := buildTransformers(ctx, inDB, opts.Config, tbl.Name, opts.Salt)
 	if err != nil {
@@ -236,7 +236,7 @@ func copyTable(ctx context.Context, inDB, outDB *sql.DB, tbl *schema.Table, opts
 	}
 
 	processRows := func(rows *sql.Rows) error {
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		jobs := opts.Jobs
 		if jobs < 1 {
 			jobs = 1
@@ -496,7 +496,7 @@ func loadLookupMap(ctx context.Context, db *sql.DB, tc *config.TransformConfig) 
 	if err != nil {
 		return nil, fmt.Errorf("lookup table %s: %w", tc.LookupTable, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result := map[string]string{}
 	for k, v := range tc.Map {
 		result[k] = v
@@ -598,7 +598,7 @@ func keyFor(values []any) string {
 func rowFingerprint(values []any) string {
 	h := sha256.New()
 	for _, v := range values {
-		_, _ = h.Write([]byte(fmt.Sprint(v)))
+		_, _ = fmt.Fprint(h, v)
 		_, _ = h.Write([]byte{0})
 	}
 	return hex.EncodeToString(h.Sum(nil))
