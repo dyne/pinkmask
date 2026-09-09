@@ -8,6 +8,7 @@ import (
 	"github.com/dyne/pinkmask/internal/copy"
 	"github.com/dyne/pinkmask/internal/inspect"
 	"github.com/dyne/pinkmask/internal/log"
+	"github.com/dyne/pinkmask/internal/pb"
 	"github.com/dyne/pinkmask/internal/plan"
 	"github.com/dyne/pinkmask/internal/transform"
 	"github.com/spf13/cobra"
@@ -47,6 +48,7 @@ func main() {
 	root.AddCommand(copyCmd(rootOpts, true))
 	root.AddCommand(inspectCmd(rootOpts))
 	root.AddCommand(planCmd(rootOpts))
+	root.AddCommand(pbCmd(rootOpts))
 	root.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Print the version",
@@ -160,5 +162,58 @@ func planCmd(rootOpts *globalOptions) *cobra.Command {
 	cmd.Flags().StringVar(&inPath, "in", "", "input SQLite file")
 	cmd.Flags().StringVar(&cfgPath, "config", "", "mask configuration file")
 	_ = cmd.MarkFlagRequired("in")
+	return cmd
+}
+
+func pbCmd(rootOpts *globalOptions) *cobra.Command {
+	var sourceURL, sourceEmail, sourcePassword string
+	var destURL, destEmail, destPassword string
+	var cfgPath string
+	envStr := func(k, fallback string) string {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+		return fallback
+	}
+	cmd := &cobra.Command{
+		Use:     "pb",
+		Aliases: []string{"pocketbase"},
+		Short:   "Copy records between PocketBase instances with masking",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := transform.LoadPlugins(rootOpts.Plugins); err != nil {
+				return err
+			}
+			cfg, err := config.Load(cfgPath)
+			if err != nil {
+				return err
+			}
+			level := log.LevelInfo
+			if rootOpts.Verbose {
+				level = log.LevelDebug
+			}
+			logger := log.New(level, cmd.OutOrStdout())
+			return pb.Run(cmd.Context(), pb.Options{
+				SourceURL:      sourceURL,
+				SourceEmail:    envStr("PB_SOURCE_EMAIL", sourceEmail),
+				SourcePassword: envStr("PB_SOURCE_PASSWORD", sourcePassword),
+				DestURL:        destURL,
+				DestEmail:      envStr("PB_DEST_EMAIL", destEmail),
+				DestPassword:   envStr("PB_DEST_PASSWORD", destPassword),
+				Config:         cfg,
+				Salt:           rootOpts.Salt,
+				Seed:           rootOpts.Seed,
+				Logger:         logger,
+			})
+		},
+	}
+	cmd.Flags().StringVar(&sourceURL, "source-url", "", "source PocketBase URL")
+	cmd.Flags().StringVar(&sourceEmail, "source-email", "", "source superuser email")
+	cmd.Flags().StringVar(&sourcePassword, "source-password", "", "source superuser password")
+	cmd.Flags().StringVar(&destURL, "dest-url", "", "destination PocketBase URL")
+	cmd.Flags().StringVar(&destEmail, "dest-email", "", "destination superuser email")
+	cmd.Flags().StringVar(&destPassword, "dest-password", "", "destination superuser password")
+	cmd.Flags().StringVar(&cfgPath, "config", "", "mask configuration file")
+	_ = cmd.MarkFlagRequired("source-url")
+	_ = cmd.MarkFlagRequired("dest-url")
 	return cmd
 }

@@ -48,6 +48,57 @@ pinkmask plan --in input.sqlite --config examples/mask.yml
 pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
 ```
 
+### PocketBase instance-to-instance masking
+
+Copy data from one PocketBase instance to another while applying the same
+`mask.yml` transformers used by SQLite mode. The source is read-only. The
+destination's missing non-system collections are created from the source
+schema, record IDs are preserved for relations, and records are imported in
+pages. System and read-only view collections are skipped. Auth collection
+passwords are replaced with deterministic random values and file fields receive
+deterministic placeholder files with fake names.
+
+```bash
+pinkmask pb \
+  --source-url https://source.example \
+  --source-email "$PB_SOURCE_EMAIL" \
+  --source-password "$PB_SOURCE_PASSWORD" \
+  --dest-url https://masked.example \
+  --dest-email "$PB_DEST_EMAIL" \
+  --dest-password "$PB_DEST_PASSWORD" \
+  --config examples/mask.yml \
+  --salt "abc" --seed 1
+```
+
+Credentials can be supplied through `PB_SOURCE_EMAIL`, `PB_SOURCE_PASSWORD`,
+`PB_DEST_EMAIL`, and `PB_DEST_PASSWORD`; environment values take precedence
+over matching flags. `include_tables` and `exclude_tables` apply to PocketBase
+collections. Existing destination collections are not altered.
+
+### PocketBase Docker fixture
+
+The repository includes a seeded source fixture at
+`testdata/pocketbase/source/pb_data`. It is mounted into the source container;
+the destination uses the disposable named volume `pb_destination_data`.
+
+Run the real two-instance transfer test:
+
+```bash
+docker compose --profile pb up --abort-on-container-exit \
+  --exit-code-from pinkmask-pb \
+  pb-source pb-destination pb-seed pinkmask-pb
+```
+
+The fixture seeder creates `customers`, `orders`, and `members` records and is
+safe to rerun. Source superuser credentials are `admin@example.com` /
+`pinkmask-admin-password`. The source is available at `http://localhost:8090`
+and the destination at `http://localhost:8091` while the services are running.
+Reset the disposable destination volume with:
+
+```bash
+docker compose --profile pb down -v
+```
+
 ## Config reference
 
 Config file is YAML. Example at `examples/mask.yml`.
@@ -263,7 +314,7 @@ pinkmask copy --in demo.sqlite --out anon.sqlite --config examples/mask.yml --sa
 Docker demo:
 
 ```bash
-docker compose up
+docker compose --profile sqlite up
 ```
 
 This produces `demo.sqlite`, `anon.sqlite`, and `anon_users.csv` in the repo.

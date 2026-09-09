@@ -44,7 +44,7 @@ pinkmask inspect --in input.sqlite --draft-config mask.draft.yml
 ## Docker demo
 
 ```bash
-docker compose up
+docker compose --profile sqlite up
 ```
 
 Produces `demo.sqlite`, `anon.sqlite`, and `anon_users.csv` in the repo.
