@@ -65,7 +65,7 @@ func (t *HmacSha256) Transform(value any, row RowContext) (any, error) {
 		return nil, nil
 	}
 	mac := hmac.New(sha256.New, t.key)
-	_, _ = mac.Write([]byte(fmt.Sprint(value)))
+	_, _ = fmt.Fprint(mac, value)
 	out := hex.EncodeToString(mac.Sum(nil))
 	if t.maxLen > 0 && t.maxLen < len(out) {
 		out = out[:t.maxLen]
@@ -248,7 +248,7 @@ func RowSeed(row RowContext) int64 {
 	_, _ = h.Write([]byte(row.Salt))
 	_, _ = h.Write([]byte(row.Table))
 	for _, v := range row.PK {
-		_, _ = h.Write([]byte(fmt.Sprint(v)))
+		_, _ = fmt.Fprint(h, v)
 	}
 	var seed int64
 	for _, b := range h.Sum(nil)[:8] {
